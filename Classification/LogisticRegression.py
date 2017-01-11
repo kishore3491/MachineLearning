@@ -1,82 +1,107 @@
-from math import exp, log
 import numpy as np
-import matplotlib.pyplot as plt
 
-# TODO
-# There are errors.
-# Can't fix it until visualization is available.
-# Change to a class and do testing outside this module.
+"""
+ToDos:
+1. Regularization
+2. Polynomial features
+3. Stochastic Gradient Descent or others.
+4. Debugging Gradient Descent without Normalization.
+"""
 
-def sigmoid(x):
-    return float(1/(1 + exp(-x)))
+class LogisticRegression:
+    """
+    A simplest classification algorithm, which uses:
+    1. Sigmoid function to transform hypothesis
+    2. Batch Gradient Descent (Upgrade to Stochastic | Make it agnostic)
+    Note:
+    NOT adjusted for bias.
+    DOES NOT normalizes given dataset.
+    """
+    def __init__(self):
+        self.weights = None
+        self.__m__ = None
+        self.__n__ = None
+        self.__alpha__ = None
+        self.__gradientStoppingDiff__ = None
+        self.costVector = None
 
-def predict(theta, X):
-    m = len(X)
-    p = np.zeros(m)
-    for i in range(m):
-        if sigmoid(theta.dot(X[i])) >= 0.5:
-            p[i] = 1
-    return p
+    def sigmoid(self, X):
+        return float(1/(1 + np.exp(-X)))
 
-def hypothesis(theta, X):
-    return sigmoid(theta.dot(X))
+    def hypothesis(self, W, X) :
+        return self.sigmoid(np.dot(W, X))
 
-def costFunction(theta, X, Y):
-    m = len(X)
-    res = 0
-    for i in range(m):
-        hypVal = sigmoid(theta.dot(X[i]))
-        res += (Y[i]*log(hypVal) + (1 - Y[i])*log(1 - hypVal))
-    return float(-res/m)
+    def costFunction(self, W, X, Y):
+        res = 0
+        error = 0.0001
+        for i in range(self.__m__):
+            hi = self.hypothesis(W, X[i, :])
+            if hi == 1:
+                hi -= error
+            elif hi == 0:
+                hi += error
+            res -= ((Y[i]*np.log(hi)) + ((1 - Y[i])*(np.log(1 - hi))))
 
+        return float(res/self.__m__)
 
-def logistic_gradientDescent(theta, X, Y, alpha=0.01, num_iters=1000):
-    (m, n) = X.shape
+    def gradientDescent(self, W, X, Y, alpha, stopping_diff, debug):
+        diff = 1
+        prev_cost = self.costFunction(W, X, Y)
+        new_W = np.zeros(self.__n__)
 
-    hx = np.zeros((m, 1))
+        if debug:
+            costVector = []
 
-    for i in range(num_iters):
-        for i in range(m):
-            hx[i] = sigmoid(theta.dot(X[i]))
-        for j in range(n):
-            gradient = 0
+        epoch = 0
+        while diff > stopping_diff:
+            for j in range(self.__n__):
+                dPen = 0
+
+                for i in range(self.__m__):
+                    dPen += (self.hypothesis(W, X[i, :]) - Y[i])*X[i][j]
+                dPen /= self.__m__
+
+                new_W[j] = W[j] - alpha*(dPen)
+
+            W = new_W
+            new_cost = self.costFunction(W, X, Y)
+            diff = abs(new_cost - prev_cost)
+            prev_cost = new_cost
+            epoch += 1
+            print ("Epoch #{0}, loss: {1}".format(epoch, new_cost))
+
+            if debug:
+                costVector.append(new_cost)
+        if debug:
+            return (W, costVector)
+        else:
+            return W
+
+    def fit(self, X, Y,  alpha=0.001, stopping_diff=0.001, debug=False):
+        (m,n) = X.shape
+        self.__m__ = m
+        self.__n__ = n
+        self.__alpha__ = alpha
+        self.__gradientStoppingDiff__ = stopping_diff
+        W = np.zeros(n)
+
+        if debug:
+            (self.weights, self.costVector) = self.gradientDescent(W, X, Y, alpha=alpha, stopping_diff=stopping_diff, debug=debug)
+        else:
+            self.weights = self.gradientDescent(W, X, Y, alpha=alpha, stopping_diff=stopping_diff, debug=False)
+
+    def test(self, Xtest):
+        if self.weights is not None:
+            (m, n) = Xtest.shape
+            assert n == self.__n__
+            res = []
             for i in range(m):
-                # TODO hypothesis is computed n times here. Try to do it only once.
-                gradient += (hx[i] - Y[i])*X[i][j]
-            theta[j] -= alpha*(gradient/m)
+                y = self.hypothesis(self.weights, Xtest[i, :])
+                if y > 0.5:
+                    res.append(1)
+                else:
+                    res.append(0)
 
-    return theta
-
-def plotData(X, Y):
-    pass
-
-if __name__ == "__main__":
-    fname = 'D:\Programming\MachineLearning\Coursera\machine-learning-ex2\ex2\ex2data1.txt'
-    data = np.loadtxt(fname, delimiter=',')
-    X = data[:, [0,1]]
-    Y = data[:, [2]]
-
-    X = np.append(np.ones((len(X), 1)), X, axis=1)
-
-    print ('X, Y: ', X[5], Y[5])
-
-    # TODO plot against cost function and initial pos, neg values.
-
-    (m,n) = X.shape
-
-    init_theta = np.zeros(n)
-
-    print ('Initial cost: ', costFunction(init_theta, X, Y))
-
-    theta = logistic_gradientDescent(init_theta, X, Y, num_iters=100)
-
-    print ('theta: ', theta)
-
-    print ('Final cost on training data: ', costFunction(theta, X, Y))
-
-    acc = predict(theta, X)
-    print ('Accuracy on training set: ', acc)
-
-    X_test = np.array([[1.0, 10.0, 16.0]])
-    res = predict(theta, X_test)
-    print ('Predicted value: ', res)
+            return res
+        else:
+            raise ValueError("Please fit the model first.")
