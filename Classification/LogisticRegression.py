@@ -44,6 +44,34 @@ class LogisticRegression:
 
         return float(res/self.__m__)
 
+    def stochasticGradientDescent(self, W, X, Y, alpha, batch, epochs, debug):
+        if debug:
+            costVector = []
+
+        for e in range(epochs):
+            T = np.arange(self.__m__)
+            np.random.shuffle(T)
+            k = 0
+            while k < self.__m__:
+                for j in range(self.__n__):
+                    dPen = 0
+                    for i in range(batch):
+                        dPen += (self.hypothesis(W, X[T[k+i], :]) - Y[T[k+i]])*X[T[k+i]][j]
+                    dPen /= batch
+                    W[j] -= alpha*dPen
+
+                k += batch
+
+                new_cost = self.costFunction(W, X, Y)
+                print ("loss: {0}".format(new_cost))
+                if debug:
+                    costVector.append(new_cost)
+
+        if debug:
+            return (W, costVector)
+        else:
+            return W
+
     def gradientDescent(self, W, X, Y, alpha, stopping_diff, debug):
         diff = 1
         prev_cost = self.costFunction(W, X, Y)
@@ -89,6 +117,18 @@ class LogisticRegression:
             (self.weights, self.costVector) = self.gradientDescent(W, X, Y, alpha=alpha, stopping_diff=stopping_diff, debug=debug)
         else:
             self.weights = self.gradientDescent(W, X, Y, alpha=alpha, stopping_diff=stopping_diff, debug=False)
+
+    def fit_SGD(self, X, Y,  alpha=0.001, batch=10, epochs=1, debug=False):
+        (m,n) = X.shape
+        self.__m__ = m
+        self.__n__ = n
+        self.__alpha__ = alpha
+        W = np.zeros(n)
+
+        if debug:
+            (self.weights, self.costVector) = self.stochasticGradientDescent(W, X, Y, alpha=alpha, batch=batch, epochs=epochs, debug=True)
+        else:
+            self.weights = self.stochasticGradientDescent(W, X, Y, alpha=alpha, batch=batch, epochs=epochs, debug=False)
 
     def test(self, Xtest):
         if self.weights is not None:
